@@ -16,6 +16,10 @@ La dirección habitual es http://127.0.0.1:3000. Si está ocupado por una versi�
 
 En la primera ejecución, crea el administrador. No hay cuentas ni contraseñas predeterminadas. Si ya usabas la versión anterior, se conserva tu base de datos y se añade el estado de usuarios automáticamente.
 
+## Página pública en GitHub Pages
+
+[Visitar Siloé — Iglesia Presbiteriana](https://tstshwva.github.io/siloe-iglesia-presbiteriana/). Sitio informativo con publicaciones públicas. El registro y el panel siguen en la aplicación local; Pages no los ejecuta. [Cómo actualizar esta web](docs/GITHUB-PAGES.md).
+
 ## Página de comunidad
 
 Abre **Ver comunidad** desde el panel o agrega /comunidad a la dirección del iniciador. Administración: /admin. Ambas páginas comparten la base de datos.

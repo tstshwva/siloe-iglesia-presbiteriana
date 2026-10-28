@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "test": "node --test",
-    "abrir": "node launch.js"
+    "abrir": "node launch.js",
+    "pages:build": "node scripts/build-pages.mjs"
   },
   "engines": {
     "node": ">=24.0.0"
