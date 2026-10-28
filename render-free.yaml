@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: siloe-iglesia-presbiteriana
+    runtime: docker
+    plan: free
+    branch: main
+    autoDeployTrigger: off
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: "3000"
+      - key: DB_REQUIRE_REMOTE
+        value: "true"
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
+      - key: SETUP_TOKEN
+        generateValue: true

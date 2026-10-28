@@ -56,10 +56,10 @@ Respaldar datos. Cerrar instancias, descargar los cambios, ejecutar npm install 
 
 [Publicar Siloé en Render](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Ftstshwva%2Fsiloe-iglesia-presbiteriana)
 
-La plantilla render.yaml prepara un servidor Docker y un disco persistente de 1 GB para conservar miembros y eventos. **El plan Starter y el disco tienen costo**; Render muestra el importe antes de contratar. No se ha contratado ni desplegado todavía.
+La plantilla render.yaml ahora prepara un servidor Docker Free sin disco. Los registros deben almacenarse en Turso Free mediante las variables privadas TURSO_DATABASE_URL y TURSO_AUTH_TOKEN. Ver ALOJAMIENTO-GRATUITO.md. La plantilla anterior con disco de pago está en render-disk.yaml.
 
 Inicia sesión en Render con GitHub, abre el enlace y revisa los recursos antes de confirmar. Una vez que el servicio indique Live, usa su dirección HTTPS: /comunidad para los hermanos y /admin para administración. El nombre solicitado es siloe-iglesia-presbiteriana; la dirección definitiva la asigna Render según disponibilidad.
 
-La base alojada empieza vacía; los registros del equipo no se suben automáticamente. En Environment, consulta en privado SETUP_TOKEN, generado por Render, y úsalo para crear al primer administrador. No compartas ese valor en el chat. La URL de correo se obtiene automáticamente de RENDER_EXTERNAL_URL salvo que definas APP_URL.
+La base alojada empieza vacía; los registros del equipo no se suben automáticamente. Configura primero la conexión privada de Turso. En Environment, consulta en privado SETUP_TOKEN, generado por Render, y úsalo para crear al primer administrador. No compartas ese valor en el chat. La URL de correo se obtiene automáticamente de RENDER_EXTERNAL_URL salvo que definas APP_URL.
 
 Configura SMTP o el webhook para verificación y recuperación de contraseñas reales. No habilites registros de miembros hasta comprobar la entrega. Las actualizaciones se publican manualmente desde Render; la plantilla desactiva despliegues automáticos. Conserva respaldos privados antes de actualizar.

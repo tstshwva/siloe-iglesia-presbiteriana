@@ -9,7 +9,7 @@ const root = path.dirname(fileURLToPath(import.meta.url)); process.chdir(root);
 if (Number(process.versions.node.split('.')[0]) < 24) { console.error('Necesitas Node.js 24 o posterior. Descárgalo en https://nodejs.org'); process.exit(1); }
 if (existsSync('.env')) loadEnvFile('.env');
 const require = createRequire(import.meta.url);
-const missing = ['nodemailer', 'pdfkit', 'read-excel-file/node', 'sharp'].some(name => { try { require.resolve(name); return false; } catch { return true; } });
+const missing = ['nodemailer', 'pdfkit', 'read-excel-file/node', 'sharp', ...(process.env.TURSO_DATABASE_URL ? ['libsql'] : [])].some(name => { try { require.resolve(name); return false; } catch { return true; } });
 if (missing) {
   console.log('Preparando dependencias de la aplicación. La primera vez necesitas internet…');
   const install = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['install', '--no-fund', '--no-audit'], { cwd: root, stdio: 'inherit', shell: process.platform === 'win32' });

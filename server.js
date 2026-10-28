@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { DatabaseSync } from 'node:sqlite';
+import { openDatabase } from './lib/database.js';
 import { randomBytes, scryptSync, timingSafeEqual, createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { loadEnvFile } from 'node:process';
@@ -16,8 +16,9 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 if (existsSync(path.join(root, '.env'))) loadEnvFile(path.join(root, '.env'));
 if (!process.env.APP_URL && process.env.RENDER_EXTERNAL_URL) process.env.APP_URL = process.env.RENDER_EXTERNAL_URL;
 mkdirSync(path.join(root, 'data'), { recursive: true });
-const db = new DatabaseSync(process.env.DB_PATH || path.join(root, 'data', 'church.sqlite'));
-db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;
+const { db, remote } = await openDatabase(process.env.DB_PATH || path.join(root, 'data', 'church.sqlite'));
+if (!remote) db.exec('PRAGMA journal_mode=WAL');
+db.exec(`PRAGMA foreign_keys=ON;
  CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY,name TEXT NOT NULL,email TEXT UNIQUE NOT NULL,password TEXT NOT NULL,role TEXT NOT NULL,active INTEGER NOT NULL DEFAULT 1);
  CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user_id INTEGER REFERENCES users(id),expires INTEGER);
  CREATE TABLE IF NOT EXISTS resets(token TEXT PRIMARY KEY,user_id INTEGER REFERENCES users(id),expires INTEGER);

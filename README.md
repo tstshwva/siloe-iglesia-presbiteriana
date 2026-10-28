@@ -78,7 +78,7 @@ El código de correo está implementado y probado con un receptor SMTP local; pa
 
 ## Publicación web
 
-[Preparar publicación de Siloé en Render](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Ftstshwva%2Fsiloe-iglesia-presbiteriana). Requiere una cuenta de Render y aprobar su servicio de pago con disco persistente. [Instrucciones](docs/OPERACION.md#publicar-en-render). Este botón prepara la instalación; no significa que ya exista una web publicada.
+[Preparar publicación de Siloé en Render](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Ftstshwva%2Fsiloe-iglesia-presbiteriana). La plantilla principal usa Render Free y una base remota Turso Free; requiere configurar la conexión privada de Turso. [Instrucciones](docs/OPERACION.md#publicar-en-render). Este botón prepara la instalación; no significa que ya exista una web publicada.
 
 ## Captura de la web publicada
 
@@ -89,3 +89,7 @@ Captura real de la página pública. La imagen de fondo es ilustrativa y puede s
 ## Administración integrada
 
 La aplicación completa permite entrar en Administración desde la portada, con correo y contraseña, sin cambiar la dirección visible ni abrir otra pestaña. Cerrar sesión devuelve a la comunidad. [Funcionamiento y publicación pendiente](docs/SITIO-INTEGRADO.md).
+
+## Alojamiento gratuito
+
+La plantilla principal ahora usa Render Free y Turso Free, manteniendo comunidad y administración en un solo sitio. No se usa el disco temporal del servidor para guardar los registros. [Configuración y límites](docs/ALOJAMIENTO-GRATUITO.md). La alternativa con disco de pago está en render-disk.yaml.
