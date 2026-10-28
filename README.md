@@ -85,3 +85,7 @@ El código de correo está implementado y probado con un receptor SMTP local; pa
 ![Siloé en GitHub Pages](docs/images/pagina-publica.png)
 
 Captura real de la página pública. La imagen de fondo es ilustrativa y puede sustituirse por una fotografía de la iglesia.
+
+## Administración integrada
+
+La aplicación completa permite entrar en Administración desde la portada, con correo y contraseña, sin cambiar la dirección visible ni abrir otra pestaña. Cerrar sesión devuelve a la comunidad. [Funcionamiento y publicación pendiente](docs/SITIO-INTEGRADO.md).

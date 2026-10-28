@@ -22,9 +22,11 @@ function membershipBanner() {
   return `<section class="status"><div><strong>${!u.emailVerified ? 'Paso 1 · Confirma tu correo' : u.membershipStatus === 'pendiente' ? 'Paso 2 · Tu solicitud está en revisión' : u.membershipStatus === 'rechazado' ? 'Tu solicitud no fue aprobada' : 'Tu acceso de miembro no está activo'}</strong><p>${!u.emailVerified ? 'Revisa el enlace enviado a ' + esc(u.email) + '. Después, el administrador podrá revisar tu registro.' : u.membershipStatus === 'pendiente' ? 'Ya apareces en las solicitudes de Miembros del administrador. Aquí podrás consultar los eventos exclusivos cuando te aprueben.' : 'Puedes consultar las publicaciones públicas. Comunícate con la iglesia para revisar tu registro.'}</p></div><div class="actions">${!u.emailVerified ? '<button id="verify" class="secondary">Tengo un código</button><button id="resend" class="secondary">Reenviar correo</button>' : ''}<button id="refresh-status" class="secondary">Actualizar estado</button></div></section>`;
 }
 function render() {
-  $('#portal-app').innerHTML = `<header class="site-header"><a class="brand-link" href="/comunidad">${brand()}</a><nav aria-label="Comunidad">${[['inicio', 'Inicio'], ['eventos', 'Eventos'], ['avisos', 'Avisos'], ['ministerios', 'Ministerios'], ['iglesia', 'Nuestra iglesia']].map(([id, label]) => `<button data-page="${id}" class="nav-link ${page === id ? 'active' : ''}" ${page === id ? 'aria-current="page"' : ''}>${label}</button>`).join('')}</nav><div class="account-actions">${state.user ? `<button id="account" class="secondary">Mi cuenta</button><button id="logout" class="link">Salir</button>${state.user.role !== 'miembro' ? '<a class="button" href="/admin">Administración ↗</a>' : ''}` : '<button id="login" class="link">Iniciar sesión</button><button id="register">Soy parte de la comunidad</button><button class="secondary" id="admin-login">Administrador</button>'}</div></header><main id="main">${membershipBanner()}<section id="view"></section></main><footer class="site-footer">${brand()}<p>Una comunidad para crecer en fe y servir con amor.</p><p>${esc(state.church.address)}</p><button class="link" data-page="iglesia">Horarios y contacto</button>${!state.user || state.user.role !== 'miembro' ? '<a href="/admin">Acceso administrativo</a>' : ''}</footer>`;
+  $('#portal-app').innerHTML = `<header class="site-header"><a class="brand-link" href="/comunidad">${brand()}</a><nav aria-label="Comunidad">${[['inicio', 'Inicio'], ['eventos', 'Eventos'], ['avisos', 'Avisos'], ['ministerios', 'Ministerios'], ['iglesia', 'Nuestra iglesia']].map(([id, label]) => `<button data-page="${id}" class="nav-link ${page === id ? 'active' : ''}" ${page === id ? 'aria-current="page"' : ''}>${label}</button>`).join('')}</nav><div class="account-actions">${state.user ? `<button id="account" class="secondary">Mi cuenta</button><button id="logout" class="link">Salir</button>${state.user.role !== 'miembro' ? '<button id="admin-open">Administración</button>' : ''}` : '<button id="login" class="link">Iniciar sesión</button><button id="register">Soy parte de la comunidad</button><button class="secondary" id="admin-login">Administrador</button>'}</div></header><main id="main">${membershipBanner()}<section id="view"></section></main><footer class="site-footer">${brand()}<p>Una comunidad para crecer en fe y servir con amor.</p><p>${esc(state.church.address)}</p><button class="link" data-page="iglesia">Horarios y contacto</button>${!state.user || state.user.role !== 'miembro' ? '<button class="link" id="admin-footer">Acceso administrativo</button>' : ''}</footer>`;
   document.querySelectorAll('[data-page]').forEach(button => button.onclick = () => { page = button.dataset.page; query = ''; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
   if ($('#admin-login')) $('#admin-login').onclick = adminLogin;
+  if ($('#admin-open')) $('#admin-open').onclick = openAdmin;
+  if ($('#admin-footer')) $('#admin-footer').onclick = () => state.user ? openAdmin() : adminLogin();
   if ($('#login')) $('#login').onclick = () => accountDialog('login'); if ($('#register')) $('#register').onclick = () => accountDialog('register');
   if ($('#logout')) $('#logout').onclick = async () => { await api('logout', 'POST'); await refresh(); };
   for (const id of ['#account', '#profile']) if ($(id)) $(id).onclick = profile;
@@ -73,7 +75,27 @@ function eventDetail(id) {
   $('#share-event').onclick = async () => { const link = location.origin + '/comunidad#evento=' + id; try { await navigator.clipboard.writeText(link); notify('Enlace copiado.'); } catch { modal('Enlace del evento', `<label>Copia este enlace<input readonly value="${esc(link)}"></label><p>Los eventos exclusivos siguen requiriendo acceso de miembro.</p>`); } };
   if ($('#rsvp')) $('#rsvp').onclick = async () => { $('#rsvp').disabled = true; try { await api('portal/events/' + id + '/rsvp', going ? 'DELETE' : 'POST'); d.close(); await refresh(); notify(going ? 'Confirmación retirada.' : '¡Te esperamos! Tu confirmación quedó guardada.'); } catch (e) { d.querySelector('.error').textContent = e.message; $('#rsvp').disabled = false; } };
 }
-function adminLogin() {
+let adminFrame;
+async function closeAdmin() {
+  $('#admin-workspace')?.remove(); adminFrame = undefined;
+  $('#portal-app').hidden = false; await refresh(); window.scrollTo(0, 0);
+}
+async function openAdmin() {
+  const status = await api('status');
+  if (!status.setup) { const user = await api('me'); if (user.role === 'miembro') throw Error('Esta cuenta no tiene acceso administrativo.'); }
+  document.querySelector('dialog')?.close();
+  $('#admin-workspace')?.remove();
+  const workspace = document.createElement('section'); workspace.id = 'admin-workspace';
+  workspace.innerHTML = '<div class="admin-toolbar"><strong>Administración de Siloé</strong><button id="back-community" class="secondary">Volver a la comunidad</button></div><iframe title="Panel de administración de Siloé" src="/admin?integrado=1"></iframe>';
+  document.body.append(workspace); adminFrame = workspace.querySelector('iframe');
+  workspace.querySelector('#back-community').onclick = closeAdmin;
+  $('#portal-app').hidden = true; window.scrollTo(0, 0);
+}
+window.addEventListener('message', event => {
+  if (event.origin === location.origin && event.source === adminFrame?.contentWindow && event.data === 'siloe-admin-exit') closeAdmin();
+});
+async function adminLogin() {
+  try { if ((await api('status')).setup) { await openAdmin(); return; } } catch (error) { notify(error.message); return; }
   const d = modal('Iniciar sesión · Administración', '<p>Acceso exclusivo para el personal autorizado de Siloé.</p><form><label>Correo electrónico<input name="email" type="email" required autocomplete="username"></label><label>Contraseña<input name="password" type="password" required maxlength="256" autocomplete="current-password"></label><p class="error" role="alert"></p><button>Iniciar sesión</button></form>');
   d.querySelector('form').onsubmit = async e => {
     e.preventDefault(); const button = e.target.querySelector('button'); button.disabled = true;
@@ -82,7 +104,7 @@ function adminLogin() {
       e.target.reset();
       const user = await api('me');
       if (user.role === 'miembro') { await api('logout', 'POST'); throw Error('Esta cuenta no tiene acceso administrativo. Usa el inicio de sesión de miembros.'); }
-      location.assign('/admin');
+      await openAdmin();
     } catch (error) { d.querySelector('.error').textContent = error.message; button.disabled = false; }
   };
 }

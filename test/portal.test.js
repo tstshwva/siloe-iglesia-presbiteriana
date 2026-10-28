@@ -32,6 +32,10 @@ test('Comunidad: registro, verificación, aprobación, privacidad, vinculación 
     assert.equal((await fetch(base + '/comunidad')).status, 200);
     assert.match(await (await fetch(base + '/')).text(), /src="\/portal.js"/);
     assert.match(await (await fetch(base + '/admin')).text(), /src="\/app.js"/);
+    const integrated = await fetch(base + '/admin?integrado=1');
+    assert.equal(integrated.status, 200);
+    assert.ok(integrated.headers.get('content-security-policy').includes("frame-ancestors 'self'"));
+    assert.equal((await request('me')).status, 401);
     assert.equal((await fetch(base + '/portal.js')).status, 200);
     assert.equal((await request('register', 'POST', { name: 'Prueba', email: 'nueva@example.test', password: 'Password12345!' })).status, 503);
     assert.equal((await request('setup', 'POST', { name: 'Administrador', email: 'admin@example.test', password: 'Password12345!' })).status, 201);

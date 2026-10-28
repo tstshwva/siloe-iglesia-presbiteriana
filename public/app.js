@@ -1,5 +1,7 @@
 import { workbook } from '/export.js';
 const $ = s => document.querySelector(s);
+const embedded = window.parent !== window && new URLSearchParams(location.search).get('integrado') === '1';
+function community() { if (embedded) window.parent.postMessage('siloe-admin-exit', location.origin); else location.assign('/'); }
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date());
 const money = n => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
@@ -19,10 +21,10 @@ function identity() { document.title = `${branding.name} · Administración`; le
 function download(blob, filename) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1500); }
 async function load() {
   try {
-    user = await api('me'); if (user.role === 'miembro') { location.replace('/comunidad'); return; } settings = await api('settings'); branding = { name: settings.name, logo: settings.logo || '', cover: settings.cover || '' }; identity(); data = {};
+    user = await api('me'); if (user.role === 'miembro') { community(); return; } settings = await api('settings'); branding = { name: settings.name, logo: settings.logo || '', cover: settings.cover || '' }; identity(); data = {};
     const kinds = ['members', 'events', 'attendance', 'ministries', 'announcements', ...(can('donations') ? ['donations'] : []), ...(can('users') ? ['users'] : []), ...(can('members') ? ['registrations'] : []), ...(can('events') ? ['event-rsvps'] : [])];
     await Promise.all(kinds.map(async k => data[k] = await api(k))); render();
-  } catch (e) { if (e.status === 401) { user = undefined; data = {}; view = 'dashboard'; auth(); } else throw e; }
+  } catch (e) { if (e.status === 401) { user = undefined; data = {}; view = 'dashboard'; if (embedded) community(); else auth(); } else throw e; }
 }
 function auth(mode = 'login') {
   const titles = { login: 'Bienvenido de nuevo', setup: 'Configura tu iglesia', forgot: 'Recupera tu acceso', reset: 'Restablece tu contraseña' };
@@ -30,7 +32,8 @@ function auth(mode = 'login') {
   if (reset) { mode = 'reset'; history.replaceState(null, '', location.pathname); }
   $('#app').innerHTML = `<div class="auth"><section class="auth-photo"><div id="auth-background"></div>${brand('auth-brand')}<div class="auth-message"><p class="eyebrow">JUNTOS CRECEMOS EN FE</p><h1>Una comunidad.<br>Una misma fe.</h1><p>Un espacio para cuidar, organizar y acompañar a nuestra iglesia.</p></div></section><section class="auth-panel"><div>${brand('login-brand')}<p class="eyebrow">ADMINISTRACIÓN DE LA IGLESIA</p><h1>${titles[mode]}</h1><p class="muted">${mode === 'setup' ? 'Crea la primera cuenta de administrador.' : mode === 'forgot' ? 'Ingresa el correo principal de tu cuenta. Enviaremos el enlace a tu correo de recuperación, o al principal si no configuraste otro.' : 'Ingresa tus datos para continuar.'}</p><form id="auth">${mode === 'setup' ? '<label>Nombre<input name="name" required maxlength="160" autocomplete="name"></label>' : ''}${mode !== 'reset' ? '<label>Correo electrónico<input name="email" type="email" required autocomplete="email"></label>' : `<label>Código de recuperación<input name="token" value="${esc(reset)}" required autocomplete="off"></label>`}${mode !== 'forgot' ? `<label>Contraseña<input name="password" type="password" required ${mode === 'login' ? '' : 'minlength="12"'} maxlength="256" autocomplete="${mode === 'login' ? 'current-password' : 'new-password'}"></label>` : ''}${mode === 'setup' ? recoveryFields() : ''}${mode === 'setup' && status.setupTokenRequired ? '<label>Token de instalación<input name="setupToken" type="password" required></label>' : ''}<p class="error" id="error" role="alert"></p><button>${mode === 'login' ? 'Iniciar sesión' : mode === 'setup' ? 'Crear administrador' : mode === 'forgot' ? 'Enviar instrucciones' : 'Guardar contraseña'}</button></form><div class="links">${mode !== 'setup' ? '<button class="secondary" data-auth="login">Iniciar sesión</button><button class="secondary" data-auth="forgot">Olvidé mi contraseña</button><button class="secondary" data-auth="reset">Tengo un código</button>' : ''}</div></div></section></div>`;
   $('#auth-background').style.backgroundImage = `linear-gradient(0deg,#12392de8,#12392d22),url("${branding.cover || photo}")`;
-  $('.auth-panel>div').insertAdjacentHTML('beforeend', '<p><a href="/comunidad">Visitar la página de la comunidad →</a></p>');
+  $('.auth-panel>div').insertAdjacentHTML('beforeend', '<p><button type="button" class="secondary" id="return-community">Volver a la comunidad</button></p>');
+  $('#return-community').onclick = community;
   document.querySelectorAll('[data-auth]').forEach(b => b.onclick = () => auth(b.dataset.auth));
   $('#auth').onsubmit = async e => {
     e.preventDefault(); const button = e.target.querySelector('button'); button.disabled = true;
@@ -43,9 +46,10 @@ function render() {
   if (!menu.includes(view)) view = 'dashboard';
   $('#app').innerHTML = `<aside>${brand('sidebar-brand')}<nav aria-label="Navegación principal">${menu.map(k => `<button data-nav="${k}" class="${view === k ? 'active' : ''}" ${view === k ? 'aria-current="page"' : ''}><span aria-hidden="true">${icons[k]}</span> ${names[k]}</button>`).join('')}</nav><footer>${esc(user.name)}<br>${esc(user.role)}<br><button id="logout">Cerrar sesión ↗</button></footer></aside><main><header>${brand('header-brand')}<div class="account"><span>${esc(user.name)} · <small>${esc(user.role)}</small></span><button id="password" class="secondary">Mi contraseña</button><button id="exit" class="secondary">Salir</button></div></header><p class="eyebrow">ESPACIO DE ADMINISTRACIÓN</p><h1>${names[view]}</h1><p class="muted">${view === 'dashboard' ? 'La vida de nuestra comunidad, en un solo lugar.' : 'Organiza y consulta la información de tu iglesia.'}</p><section id="content" aria-live="polite"></section></main>`;
   document.querySelectorAll('[data-nav]').forEach(b => b.onclick = () => { view = b.dataset.nav; search = ''; filter = ''; render(); });
-  for (const selector of ['#exit', '#logout']) if ($(selector)) $(selector).onclick = async () => { await api('logout', 'POST'); user = undefined; data = {}; view = 'dashboard'; auth(); };
+  for (const selector of ['#exit', '#logout']) if ($(selector)) $(selector).onclick = async () => { await api('logout', 'POST'); user = undefined; data = {}; view = 'dashboard'; if (embedded) community(); else auth(); };
   $('#password').onclick = changePassword;
-  $('#password').insertAdjacentHTML('beforebegin', '<a class="secondary" href="/comunidad">Ver comunidad ↗</a>');
+  $('#password').insertAdjacentHTML('beforebegin', '<button id="community" class="secondary">Ver comunidad</button>');
+  $('#community').onclick = community;
   $('#password').insertAdjacentHTML('beforebegin', '<button id="recovery" class="secondary">Recuperación</button>');
   $('#recovery').onclick = () => dialog('Mis datos de recuperación', `${recoveryFields(user)}${field('current', 'Confirma tu contraseña actual *', '', 'password', true, 'autocomplete="current-password"')}`, async v => { await api('account/recovery', 'PUT', v); });
   if (view === 'dashboard') dashboard(); else if (view === 'settings') configuration(); else if (view === 'reports') reports(); else if (view === 'attendance') attendance(); else listing();

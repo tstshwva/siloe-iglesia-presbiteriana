@@ -29,3 +29,7 @@ La prueba test/pages.test.js comprueba la exclusión de datos privados y avisos 
 El botón abre el formulario de correo y contraseña dentro de la página, sin pedir direcciones ni abrir otra pestaña. En GitHub Pages se muestra deshabilitado y se explica que el acceso por internet está pendiente: no hay un servidor que pueda verificar credenciales.
 
 En la aplicación completa el formulario verifica las credenciales con el servidor y comprueba el rol antes de entrar al panel, dentro del mismo sitio y pestaña. Una cuenta de miembro no obtiene acceso administrativo. Los permisos de cada API permanecen en el servidor.
+
+## Administración dentro de la comunidad
+
+La aplicación completa mantiene la dirección principal mientras presenta el panel en un marco del mismo origen. Cerrar sesión devuelve a la comunidad y elimina la sesión. La publicación de esta aplicación completa sigue pendiente del alojamiento; la copia de GitHub Pages aún no puede autenticar usuarios. Ver SITIO-INTEGRADO.md.
