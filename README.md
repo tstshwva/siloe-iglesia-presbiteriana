@@ -79,3 +79,9 @@ El código de correo está implementado y probado con un receptor SMTP local; pa
 ## Publicación web
 
 [Preparar publicación de Siloé en Render](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Ftstshwva%2Fsiloe-iglesia-presbiteriana). Requiere una cuenta de Render y aprobar su servicio de pago con disco persistente. [Instrucciones](docs/OPERACION.md#publicar-en-render). Este botón prepara la instalación; no significa que ya exista una web publicada.
+
+## Captura de la web publicada
+
+![Siloé en GitHub Pages](docs/images/pagina-publica.png)
+
+Captura real de la página pública. La imagen de fondo es ilustrativa y puede sustituirse por una fotografía de la iglesia.

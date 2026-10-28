@@ -31,3 +31,7 @@ Alta con correo alternativo/teléfono, migración de cuentas anteriores, rechazo
 ## Comunidad 3.0
 
 Pruebas HTTP con bases temporales: registro sin elevar permisos, correo verificado de uso único, aprobación obligatoria, vínculo sin duplicados, creación de miembros, bloqueo de API administrativas, filtrado público/miembros/privado, anuncios futuros, bajas, confirmación idempotente, cancelación y calendario ICS con escape y plegado UTF-8. El usuario confirmó que la página abre sin error; sigue pendiente la revisión visual completa.
+
+## Publicación GitHub Pages · 28 de octubre de 2026
+
+Publicación comprobada en https://tstshwva.github.io/siloe-iglesia-presbiteriana/ con estado built en GitHub. En el navegador se comprobaron inicio, eventos, calendario mensual y datos de la iglesia. No se detectaron errores de consola durante esa revisión. La captura images/pagina-publica.png corresponde a la web publicada; su fotografía de fondo es ilustrativa. No se han validado aún todos los tamaños móviles ni eventos reales con direcciones, porque no hay publicaciones públicas en la base local. Las seis pruebas automatizadas pasaron, incluida la exclusión de datos privados del generador.
