@@ -28,16 +28,7 @@ function eventDetail(id) {
   d.querySelector('#share-event').onclick = async () => { const link = new URL(location.href); link.hash = 'evento=' + id; try { await navigator.clipboard.writeText(link.href); notify('Enlace copiado.'); } catch { modal('Enlace del evento', `<label>Copia este enlace<input readonly value="${esc(link.href)}"></label>`); } };
 }
 function adminAccess() {
-  const d = modal('Acceso de administrador', '<p>El panel requiere iniciar sesión con tu correo y contraseña. Solo el personal autorizado puede administrar la iglesia.</p><p><strong>El acceso por internet todavía no está conectado.</strong> Por ahora, abre <b>iniciar.cmd</b> en la computadora de la iglesia y utiliza la dirección de Administración que muestre la ventana.</p><form><label>Dirección local de Administración<input name="address" type="url" placeholder="http://127.0.0.1:PUERTO/admin" required autocomplete="off"></label><p class="error" role="alert"></p><button>Ir a iniciar sesión ↗</button></form><p class="muted">La contraseña se solicita en el panel. Esta página pública no recibe ni guarda credenciales.</p>');
-  d.querySelector('form').onsubmit = e => {
-    e.preventDefault();
-    try {
-      const address = new URL(new FormData(e.target).get('address'));
-      if (!['http:', 'https:'].includes(address.protocol) || !['localhost', '127.0.0.1', '[::1]'].includes(address.hostname) || address.username || address.password) throw Error('Usa la dirección local que muestra iniciar.cmd, con su puerto.');
-      address.pathname = '/admin'; address.search = ''; address.hash = '';
-      window.open(address.href, '_blank', 'noopener,noreferrer');
-    } catch (error) { d.querySelector('.error').textContent = error.message; }
-  };
+  modal('Iniciar sesión · Administración', '<p>Acceso exclusivo para el personal autorizado de Siloé.</p><p class="status" id="admin-unavailable">El inicio de sesión en internet está pendiente de activar. Por ahora este formulario está deshabilitado.</p><form aria-describedby="admin-unavailable"><label>Correo electrónico<input type="email" autocomplete="username" disabled></label><label>Contraseña<input type="password" autocomplete="current-password" disabled></label><button type="button" disabled>Iniciar sesión</button></form>');
 }
 function deepLink() {
   if (!state) return;

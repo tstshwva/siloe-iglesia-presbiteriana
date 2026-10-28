@@ -26,6 +26,6 @@ La prueba test/pages.test.js comprueba la exclusión de datos privados y avisos 
 
 ## Botón Administrador
 
-La cabecera pública incluye Administrador. En GitHub Pages abre instrucciones para ir al panel local; no solicita ni almacena contraseñas. La dirección se introduce con el puerto real del iniciador y se restringe a localhost. No se ofrece un inicio de sesión de internet mientras no exista servidor alojado.
+El botón abre el formulario de correo y contraseña dentro de la página, sin pedir direcciones ni abrir otra pestaña. En GitHub Pages se muestra deshabilitado y se explica que el acceso por internet está pendiente: no hay un servidor que pueda verificar credenciales.
 
-En la aplicación completa, la raíz abre la comunidad y Administrador lleva a /admin, donde se pide correo y contraseña. Los permisos se siguen validando en el servidor. Tener el botón no concede acceso administrativo.
+En la aplicación completa el formulario verifica las credenciales con el servidor y comprueba el rol antes de entrar al panel, dentro del mismo sitio y pestaña. Una cuenta de miembro no obtiene acceso administrativo. Los permisos de cada API permanecen en el servidor.
