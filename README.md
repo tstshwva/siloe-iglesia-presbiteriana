@@ -71,3 +71,7 @@ La base está en data/church.sqlite. data/, .env y node_modules/ están excluido
 ## Qué necesita configuración externa
 
 El código de correo está implementado y probado con un receptor SMTP local; para entregar correos reales hay que configurar el proveedor de la iglesia en .env. La aplicación incluye Dockerfile para alojamiento con disco persistente y HTTPS, pero **el repositorio de GitHub no es un servidor de la aplicación**. El despliegue requiere elegir y configurar un alojamiento. La revisión visual completa y capturas de las pantallas quedan pendientes de acceso del navegador al servidor local.
+
+## Publicación web
+
+[Preparar publicación de Siloé en Render](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Ftstshwva%2Fsiloe-iglesia-presbiteriana). Requiere una cuenta de Render y aprobar su servicio de pago con disco persistente. [Instrucciones](docs/OPERACION.md#publicar-en-render). Este botón prepara la instalación; no significa que ya exista una web publicada.

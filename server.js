@@ -14,6 +14,7 @@ import { createPortal } from './lib/portal.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 if (existsSync(path.join(root, '.env'))) loadEnvFile(path.join(root, '.env'));
+if (!process.env.APP_URL && process.env.RENDER_EXTERNAL_URL) process.env.APP_URL = process.env.RENDER_EXTERNAL_URL;
 mkdirSync(path.join(root, 'data'), { recursive: true });
 const db = new DatabaseSync(process.env.DB_PATH || path.join(root, 'data', 'church.sqlite'));
 db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;

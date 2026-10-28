@@ -51,3 +51,15 @@ El Dockerfile no ha sido ejecutado en este equipo porque Docker no forma parte d
 ## Actualizar
 
 Respaldar datos. Cerrar instancias, descargar los cambios, ejecutar npm install si hay nuevas dependencias y abrir iniciar.cmd. Para activar pruebas en GitHub, copiar docs/github-actions-ejemplo.yml a .github/workflows/tests.yml desde una sesión con permisos workflow. La autorización utilizada en esta entrega no permite crear workflows; la plantilla no está activa. Las subidas del agente son por entrega, no una automatización permanente.
+
+## Publicar en Render
+
+[Publicar Siloé en Render](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Ftstshwva%2Fsiloe-iglesia-presbiteriana)
+
+La plantilla render.yaml prepara un servidor Docker y un disco persistente de 1 GB para conservar miembros y eventos. **El plan Starter y el disco tienen costo**; Render muestra el importe antes de contratar. No se ha contratado ni desplegado todavía.
+
+Inicia sesión en Render con GitHub, abre el enlace y revisa los recursos antes de confirmar. Una vez que el servicio indique Live, usa su dirección HTTPS: /comunidad para los hermanos y /admin para administración. El nombre solicitado es siloe-iglesia-presbiteriana; la dirección definitiva la asigna Render según disponibilidad.
+
+La base alojada empieza vacía; los registros del equipo no se suben automáticamente. En Environment, consulta en privado SETUP_TOKEN, generado por Render, y úsalo para crear al primer administrador. No compartas ese valor en el chat. La URL de correo se obtiene automáticamente de RENDER_EXTERNAL_URL salvo que definas APP_URL.
+
+Configura SMTP o el webhook para verificación y recuperación de contraseñas reales. No habilites registros de miembros hasta comprobar la entrega. Las actualizaciones se publican manualmente desde Render; la plantilla desactiva despliegues automáticos. Conserva respaldos privados antes de actualizar.
