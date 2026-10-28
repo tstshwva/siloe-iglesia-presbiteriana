@@ -14,8 +14,8 @@ import { createPortal } from './lib/portal.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 if (existsSync(path.join(root, '.env'))) loadEnvFile(path.join(root, '.env'));
-if (!process.env.APP_URL && process.env.RENDER_EXTERNAL_URL) process.env.APP_URL = process.env.RENDER_EXTERNAL_URL;
-mkdirSync(path.join(root, 'data'), { recursive: true });
+if (!process.env.APP_URL) process.env.APP_URL = process.env.RENDER_EXTERNAL_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? 'https://' + process.env.VERCEL_PROJECT_PRODUCTION_URL : '');
+if (!process.env.TURSO_DATABASE_URL) mkdirSync(path.join(root, 'data'), { recursive: true });
 const { db, remote } = await openDatabase(process.env.DB_PATH || path.join(root, 'data', 'church.sqlite'));
 if (!remote) db.exec('PRAGMA journal_mode=WAL');
 db.exec(`PRAGMA foreign_keys=ON;
@@ -59,7 +59,7 @@ function newSession(res, id) {
   res.setHeader('Set-Cookie', `session=${t}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${process.env.COOKIE_SECURE === 'true' ? '; Secure' : ''}`);
 }
 const portal = createPortal({ db, all, save, settings, hash, digest, newSession, throttle });
-const server = http.createServer(async (req, res) => {
+export async function handleRequest(req, res) {
   res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'same-origin');
   res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https://images.unsplash.com; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'");
   const send = (code, data) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(data)); };
@@ -195,7 +195,10 @@ const server = http.createServer(async (req, res) => {
     if (res.headersSent) return res.destroy();
     send(e.status || 400, { error: e.message.includes('UNIQUE') ? 'El correo ya está registrado.' : e.message, ...(e.details ? { details: e.details } : {}) });
   }
-});
+}
+const server = http.createServer(handleRequest);
 server.requestTimeout = 30000;
+if (!process.env.VERCEL) {
 server.listen(process.env.PORT === '0' ? 0 : Number(process.env.PORT) || 3000, process.env.HOST || '127.0.0.1', () => console.log(`Aplicación disponible en http://127.0.0.1:${server.address().port}`));
 server.on('error', e => { console.error(e.code === 'EADDRINUSE' ? 'El puerto está ocupado. Cierra la otra instancia o cambia PORT en .env.' : e.message); process.exitCode = 1; });
+}
