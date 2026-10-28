@@ -23,3 +23,9 @@ Las cuentas, contraseñas, miembros, finanzas, responsables y listas de integran
 ## Pruebas
 
 La prueba test/pages.test.js comprueba la exclusión de datos privados y avisos futuros. El generador crea views.js y style.css desde las vistas de comunidad; site.js contiene la navegación estática. La base alojada de GitHub Pages es una copia pública en JSON, no una base de datos de administración.
+
+## Botón Administrador
+
+La cabecera pública incluye Administrador. En GitHub Pages abre instrucciones para ir al panel local; no solicita ni almacena contraseñas. La dirección se introduce con el puerto real del iniciador y se restringe a localhost. No se ofrece un inicio de sesión de internet mientras no exista servidor alojado.
+
+En la aplicación completa, la raíz abre la comunidad y Administrador lleva a /admin, donde se pide correo y contraseña. Los permisos se siguen validando en el servidor. Tener el botón no concede acceso administrativo.

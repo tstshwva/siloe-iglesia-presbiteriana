@@ -12,8 +12,9 @@ function mapLinks(place) {
   return `<a class="button secondary" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place)}">Google Maps ↗</a><a class="button secondary" target="_blank" rel="noopener noreferrer" href="https://maps.apple.com/?daddr=${encodeURIComponent(place)}">Apple Maps ↗</a>`;
 }
 function render() {
-  $('#portal-app').innerHTML = `<header class="site-header"><a class="brand-link" href="./">${brand()}</a><nav aria-label="Comunidad">${[['inicio','Inicio'],['eventos','Eventos'],['avisos','Avisos'],['ministerios','Ministerios'],['iglesia','Nuestra iglesia']].map(([id,label]) => `<button data-page="${id}" class="nav-link ${page === id ? 'active' : ''}" ${page === id ? 'aria-current="page"' : ''}>${label}</button>`).join('')}</nav><div class="account-actions"><button class="secondary" data-page="iglesia">Horarios y contacto ↗</button></div></header><main id="main"><section id="view"></section></main><footer class="site-footer">${brand()}<p>Una comunidad para crecer en fe y servir con amor.</p><p>${esc(state.church.address)}</p><button class="link" data-page="iglesia">Horarios y contacto</button><p>Esta página es informativa. El registro de miembros y el acceso administrativo en línea estarán disponibles próximamente.</p><small>Última publicación: ${esc(readable(state.updatedAt.slice(0,10)))}</small></footer>`;
+  $('#portal-app').innerHTML = `<header class="site-header"><a class="brand-link" href="./">${brand()}</a><nav aria-label="Comunidad">${[['inicio','Inicio'],['eventos','Eventos'],['avisos','Avisos'],['ministerios','Ministerios'],['iglesia','Nuestra iglesia']].map(([id,label]) => `<button data-page="${id}" class="nav-link ${page === id ? 'active' : ''}" ${page === id ? 'aria-current="page"' : ''}>${label}</button>`).join('')}</nav><div class="account-actions"><button class="secondary" data-page="iglesia">Contacto ↗</button><button id="admin-access">Administrador</button></div></header><main id="main"><section id="view"></section></main><footer class="site-footer">${brand()}<p>Una comunidad para crecer en fe y servir con amor.</p><p>${esc(state.church.address)}</p><button class="link" data-page="iglesia">Horarios y contacto</button><p>Esta página es informativa. El registro de miembros y el acceso administrativo en línea estarán disponibles próximamente.</p><small>Última publicación: ${esc(readable(state.updatedAt.slice(0,10)))}</small></footer>`;
   document.querySelectorAll('[data-page]').forEach(button => button.onclick = () => { page = button.dataset.page; query = ''; ministry = ''; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  $('#admin-access').onclick = adminAccess;
   if (page === 'inicio') home(); else if (page === 'eventos') events(); else if (page === 'avisos') announcements(); else if (page === 'ministerios') ministries(); else about();
 }
 function modal(title, contents) {
@@ -25,6 +26,18 @@ function eventDetail(id) {
   const event = state.events.find(row => row.id === id); if (!event) return notify('Este evento no está publicado.');
   const d = modal(event.title, `${event.photo ? `<img class="detail-photo" src="${esc(event.photo)}" alt="${esc(event.title)}">` : ''}<div class="tags"><span class="tag ${event.status === 'Cancelado' ? 'cancelled' : ''}">${esc(event.status || 'Programado')}</span></div><p><strong>${esc(readable(event.date))} · ${esc(event.time)} h</strong><br><small>Hora de Ciudad de México</small></p><h3>${esc(event.place)}</h3><p>${esc(event.address || 'Consulta la dirección exacta con la iglesia antes de salir.')}</p><div class="actions">${mapLinks(event.address || event.place)}</div><p class="multiline detail-description">${esc(event.description)}</p><button class="secondary" id="share-event">Copiar enlace del evento</button>`);
   d.querySelector('#share-event').onclick = async () => { const link = new URL(location.href); link.hash = 'evento=' + id; try { await navigator.clipboard.writeText(link.href); notify('Enlace copiado.'); } catch { modal('Enlace del evento', `<label>Copia este enlace<input readonly value="${esc(link.href)}"></label>`); } };
+}
+function adminAccess() {
+  const d = modal('Acceso de administrador', '<p>El panel requiere iniciar sesión con tu correo y contraseña. Solo el personal autorizado puede administrar la iglesia.</p><p><strong>El acceso por internet todavía no está conectado.</strong> Por ahora, abre <b>iniciar.cmd</b> en la computadora de la iglesia y utiliza la dirección de Administración que muestre la ventana.</p><form><label>Dirección local de Administración<input name="address" type="url" placeholder="http://127.0.0.1:PUERTO/admin" required autocomplete="off"></label><p class="error" role="alert"></p><button>Ir a iniciar sesión ↗</button></form><p class="muted">La contraseña se solicita en el panel. Esta página pública no recibe ni guarda credenciales.</p>');
+  d.querySelector('form').onsubmit = e => {
+    e.preventDefault();
+    try {
+      const address = new URL(new FormData(e.target).get('address'));
+      if (!['http:', 'https:'].includes(address.protocol) || !['localhost', '127.0.0.1', '[::1]'].includes(address.hostname) || address.username || address.password) throw Error('Usa la dirección local que muestra iniciar.cmd, con su puerto.');
+      address.pathname = '/admin'; address.search = ''; address.hash = '';
+      window.open(address.href, '_blank', 'noopener,noreferrer');
+    } catch (error) { d.querySelector('.error').textContent = error.message; }
+  };
 }
 function deepLink() {
   if (!state) return;

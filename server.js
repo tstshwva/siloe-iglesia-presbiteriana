@@ -67,7 +67,7 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost'), p = url.pathname, method = req.method;
     if (p === '/health' && method === 'GET') return send(200, { ok: true, app: 'siloe', version: '3.0.0' });
     if (!p.startsWith('/api/')) {
-      const paths = { '/': 'index.html', '/admin': 'index.html', '/comunidad': 'portal.html', '/comunidad/': 'portal.html', '/portal.js': 'portal.js', '/portal.css': 'portal.css', '/app.js': 'app.js', '/export.js': 'export.js', '/style.css': 'style.css' };
+      const paths = { '/': 'portal.html', '/admin': 'index.html', '/comunidad': 'portal.html', '/comunidad/': 'portal.html', '/portal.js': 'portal.js', '/portal.css': 'portal.css', '/app.js': 'app.js', '/export.js': 'export.js', '/style.css': 'style.css' };
       const f = paths[p]; if (!f || method !== 'GET') return send(404, { error: 'No encontrado' });
       res.setHeader('Content-Type', f.endsWith('.js') ? 'text/javascript; charset=utf-8' : f.endsWith('.css') ? 'text/css; charset=utf-8' : 'text/html; charset=utf-8');
       res.setHeader('Cache-Control', 'no-cache'); return res.end(readFileSync(path.join(root, 'public', f)));

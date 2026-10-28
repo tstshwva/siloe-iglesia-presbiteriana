@@ -30,6 +30,8 @@ test('Comunidad: registro, verificación, aprobación, privacidad, vinculación 
       throw Error('No se generó el correo de verificación local.');
     };
     assert.equal((await fetch(base + '/comunidad')).status, 200);
+    assert.match(await (await fetch(base + '/')).text(), /src="\/portal.js"/);
+    assert.match(await (await fetch(base + '/admin')).text(), /src="\/app.js"/);
     assert.equal((await fetch(base + '/portal.js')).status, 200);
     assert.equal((await request('register', 'POST', { name: 'Prueba', email: 'nueva@example.test', password: 'Password12345!' })).status, 503);
     assert.equal((await request('setup', 'POST', { name: 'Administrador', email: 'admin@example.test', password: 'Password12345!' })).status, 201);
