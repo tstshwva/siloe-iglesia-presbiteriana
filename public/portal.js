@@ -95,7 +95,7 @@ window.addEventListener('message', event => {
   if (event.origin === location.origin && event.source === adminFrame?.contentWindow && event.data === 'siloe-admin-exit') closeAdmin();
 });
 async function adminLogin() {
-  try { if ((await api('status')).setup) { await openAdmin(); return; } } catch (error) { notify(error.message); return; }
+  try { const status = await api('status'); if (status.setup) { if (status.setupByEmail) ownerActivation(); else await openAdmin(); return; } } catch (error) { notify(error.message); return; }
   const d = modal('Iniciar sesión · Administración', '<p>Acceso exclusivo para el personal autorizado de Siloé.</p><form><label>Correo electrónico<input name="email" type="email" required autocomplete="username"></label><label>Contraseña<input name="password" type="password" required maxlength="256" autocomplete="current-password"></label><p class="error" role="alert"></p><button>Iniciar sesión</button></form>');
   d.querySelector('form').onsubmit = async e => {
     e.preventDefault(); const button = e.target.querySelector('button'); button.disabled = true;
@@ -109,6 +109,25 @@ async function adminLogin() {
   };
 }
 const input = (name, label, type = 'text', required = true, extra = '') => `<label>${label}<input name="${name}" type="${type}" ${required ? 'required' : ''} ${extra}></label>`;
+function ownerActivation(token = '') {
+  const fields = token ? input('name', 'Tu nombre', 'text', true, 'maxlength="160" autocomplete="name"')
+    + input('password', 'Contraseña (mínimo 12 caracteres)', 'password', true, 'minlength="12" maxlength="256" autocomplete="new-password"')
+    + input('confirm', 'Confirma la contraseña', 'password', true, 'minlength="12" maxlength="256" autocomplete="new-password"') : '';
+  const d = modal('Activar administración', `<p>${token ? 'Elige la contraseña de la cuenta titular.' : 'Enviaremos un enlace privado al correo de la cuenta titular de Siloé.'}</p><form>${fields}<p role="alert" class="error"></p><button>${token ? 'Activar cuenta' : 'Enviar enlace'}</button></form>`);
+  d.querySelector('form').onsubmit = async event => {
+    event.preventDefault();
+    const form = event.currentTarget, button = form.querySelector('button');
+    button.disabled = true;
+    try {
+      const { name, password, confirm } = Object.fromEntries(new FormData(form));
+      if (token && password !== confirm) throw Error('Las contraseñas no coinciden.');
+      const result = await api(token ? 'setup' : 'setup/email', 'POST', token ? { name, password, token } : {});
+      d.close();
+      if (token) await adminLogin();
+      notify(result.message || 'Cuenta activada. Inicia sesión con tu correo y contraseña.');
+    } catch (error) { form.querySelector('.error').textContent = error.message; button.disabled = false; }
+  };
+}
 function accountDialog(mode = 'login', token = '') {
   const register = mode === 'register', reset = mode === 'reset';
   const d = modal(register ? 'Únete a nuestra comunidad' : mode === 'forgot' ? 'Recupera tu acceso' : reset ? 'Restablecer contraseña' : 'Qué alegría verte de nuevo', `<p class="muted">${register ? 'Tu solicitud aparecerá en el panel de la iglesia. Verifica tu correo y espera la aprobación.' : mode === 'forgot' ? 'Escribe el correo principal de tu cuenta. El enlace llegará al correo de recuperación que configuraste, o al principal.' : 'Tu espacio para participar en la vida de la iglesia.'}</p><form class="account-form"><div class="form-grid">${register ? input('name', 'Nombre completo *', 'text', true, 'maxlength="160" autocomplete="name"') : ''}${!reset ? input('email', 'Correo principal *', 'email', true, 'maxlength="254" autocomplete="email"') : input('token', 'Código de recuperación', 'text', true, `value="${esc(token)}" autocomplete="off"`)}${mode !== 'forgot' ? input('password', 'Contraseña *' + (register || reset ? ' (mínimo 12 caracteres)' : ''), 'password', true, `${register || reset ? 'minlength="12"' : ''} maxlength="256" autocomplete="${register || reset ? 'new-password' : 'current-password'}"`) : ''}${register || reset ? input('confirm', 'Confirmar contraseña *', 'password', true, 'autocomplete="new-password"') : ''}${register ? input('phone', 'Teléfono (opcional)', 'tel', false, 'maxlength="30" autocomplete="tel"') + `<details class="full"><summary>Añadir datos de recuperación (opcional)</summary><div class="form-grid">${input('recoveryEmail', 'Correo alternativo', 'email', false, 'maxlength="254"')}${input('recoveryPhone', 'Teléfono de recuperación', 'tel', false, 'maxlength="30"')}</div><small>El teléfono es contacto de apoyo; no envía códigos por SMS.</small></details>` : ''}</div><p class="error" role="alert"></p><button>${register ? 'Crear cuenta y solicitar registro' : mode === 'forgot' ? 'Enviar instrucciones' : reset ? 'Guardar contraseña' : 'Iniciar sesión'}</button></form><div class="actions form-links">${!register ? '<button id="create-account" class="link">Crear mi cuenta</button>' : '<button id="have-account" class="link">Ya tengo una cuenta</button>'}${mode === 'login' ? '<button id="forgot" class="link">Olvidé mi contraseña</button>' : ''}</div>`);
@@ -131,5 +150,6 @@ try {
   await refresh(); const fragment = location.hash.slice(1); history.replaceState(null, '', location.pathname);
   if (fragment.startsWith('verificar=')) { const token = decodeURIComponent(fragment.slice(10)); try { const result = await api('verify-email', 'POST', { token }); await refresh(); notify(result.message); } catch (e) { verification(token); notify(e.message); } }
   else if (fragment.startsWith('restablecer=')) accountDialog('reset', decodeURIComponent(fragment.slice(12)));
+  else if (fragment.startsWith('activar=')) ownerActivation(fragment.slice(8));
   else if (fragment.startsWith('evento=')) eventDetail(Number(fragment.slice(7)));
 } catch (e) { $('#portal-app').innerHTML = `<section class="section"><h1>La comunidad está preparando su espacio</h1><p>${esc(e.message)}</p><a href="/admin">Acceso administrativo</a></section>`; }

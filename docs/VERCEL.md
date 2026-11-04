@@ -15,3 +15,14 @@ Referencias oficiales:
 - https://vercel.com/docs/plans/hobby
 - https://vercel.com/docs/functions/runtimes/node-js
 - https://vercel.com/docs/functions/runtimes/node-js/node-js-versions
+
+### Activar la cuenta titular por correo
+
+Para una instalación nueva, configura OWNER_EMAIL con el correo titular en Production.
+Configura APP_URL con el origen HTTPS de Siloé y un remitente SMTP
+(SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD y MAIL_FROM) o un servicio
+compatible con RESET_WEBHOOK. Guarda los secretos solo en Vercel.
+Vuelve a publicar y abre Administrador → Enviar enlace. El enlace se envía
+solo a OWNER_EMAIL y permite elegir contraseña durante 30 minutos. Después
+de activar la cuenta, la persona titular gestiona los permisos desde Usuarios.
+En este modo SETUP_TOKEN deja de aplicarse.
