@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import sharp from 'sharp';
 import { roles, permissions, fail, text, validEmail, password, recovery, record, duplicate } from './lib/domain.js';
-import { deliverReset, deliverSetup, mailStatus } from './lib/mail.js';
+import { deliverReset, mailStatus } from './lib/mail.js';
 import { previewImport } from './lib/import.js';
 import { report, reportPdf } from './lib/reports.js';
 import { createPortal } from './lib/portal.js';
@@ -29,7 +29,12 @@ for (const column of ['recovery_email', 'recovery_phone']) if (!db.prepare('PRAG
 if (!db.prepare('SELECT id FROM settings').get()) db.prepare('INSERT INTO settings VALUES(1,?)').run(JSON.stringify({ name: 'Siloé - Iglesia Presbiteriana', address: '', phone: '', email: '', schedule: 'Domingos 10:00', logo: '', cover: '' }));
 
 const owner = (process.env.OWNER_EMAIL || '').trim().toLowerCase();
-if (owner) db.exec('CREATE TABLE IF NOT EXISTS owner_setup(id INTEGER PRIMARY KEY CHECK(id=1), token TEXT NOT NULL, expires INTEGER NOT NULL)');
+const privateSetup = !process.env.VERCEL && process.argv.includes('--registrar-titular');
+if (privateSetup && (!validEmail(owner) || !remote)) throw Error('Configura OWNER_EMAIL y la conexión de Turso antes de registrar al titular.');
+const emptyUsers = () => !db.prepare('SELECT id FROM users LIMIT 1').get();
+const localSetupRequest = req => privateSetup && req.socket.remoteAddress === '127.0.0.1'
+  && /^127\.0\.0\.1:\d+$/.test(req.headers.host || '');
+const adminAccess = user => Boolean(user && (owner ? user.email === owner && user.role === 'administrador' : user.role !== 'miembro'));
 const settings = () => JSON.parse(db.prepare('SELECT body FROM settings WHERE id=1').get().body);
 const digest = s => createHash('sha256').update(s).digest('hex');
 const hash = p => { const salt = randomBytes(16).toString('hex'); return salt + ':' + scryptSync(p, salt, 64).toString('hex'); };
@@ -63,14 +68,14 @@ function newSession(res, id) {
 const portal = createPortal({ db, all, save, settings, hash, digest, newSession, throttle });
 export async function handleRequest(req, res) {
   res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'same-origin');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https://images.unsplash.com; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'");
+  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https://images.unsplash.com; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-src https://www.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
   const send = (code, data) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(data)); };
   const download = (bytes, type, name) => { res.writeHead(200, { 'Content-Type': type, 'Content-Disposition': `attachment; filename="${name}"`, 'Cache-Control': 'no-store' }); res.end(bytes); };
   try {
     const url = new URL(req.url, 'http://localhost'), p = url.pathname, method = req.method;
     if (p === '/health' && method === 'GET') return send(200, { ok: true, app: 'siloe', version: '3.0.0' });
     if (!p.startsWith('/api/')) {
-      if (p === '/admin' && method === 'GET' && owner && !db.prepare('SELECT id FROM users LIMIT 1').get()) { res.writeHead(302, { Location: '/', 'Cache-Control': 'no-store' }); return res.end(); }
+      if (p === '/admin') res.setHeader('X-Robots-Tag', 'noindex, nofollow');
       const paths = { '/': 'portal.html', '/admin': 'index.html', '/comunidad': 'portal.html', '/comunidad/': 'portal.html', '/portal.js': 'portal.js', '/portal.css': 'portal.css', '/app.js': 'app.js', '/export.js': 'export.js', '/style.css': 'style.css' };
       const f = paths[p]; if (!f || method !== 'GET') return send(404, { error: 'No encontrado' });
       res.setHeader('Content-Type', f.endsWith('.js') ? 'text/javascript; charset=utf-8' : f.endsWith('.css') ? 'text/css; charset=utf-8' : 'text/html; charset=utf-8');
@@ -78,26 +83,17 @@ export async function handleRequest(req, res) {
     }
     if (method !== 'GET' && req.headers.origin && ![`http://${req.headers.host}`, `https://${req.headers.host}`, process.env.APP_URL].filter(Boolean).includes(req.headers.origin)) fail('Origen rechazado.', 403);
     if (p === '/api/branding' && method === 'GET') { const s = settings(); return send(200, { name: s.name, logo: s.logo || '', cover: s.cover || '' }); }
-    if (p === '/api/status' && method === 'GET') return send(200, { version: '3.0.0', setup: !db.prepare('SELECT id FROM users LIMIT 1').get(), setupByEmail: Boolean(owner), setupTokenRequired: !owner && Boolean(process.env.SETUP_TOKEN) });
-    if (p === '/api/setup/email' && method === 'POST') {
-      if (!owner || db.prepare('SELECT id FROM users LIMIT 1').get()) fail('Activación inicial no disponible.', 403);
-      if (!process.env.APP_URL || !(mailStatus().configured || process.env.RESET_WEBHOOK)) fail('Falta configurar el envío de correo.', 503);
-      const now = Date.now(), token = randomBytes(32).toString('hex'), key = digest(token);
-      const result = db.prepare('INSERT INTO owner_setup VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET token=excluded.token,expires=excluded.expires WHERE owner_setup.expires<=?').run(key, now + 1800000, now + 1740000);
-      if (!result.changes) fail('Espera un minuto antes de solicitar otro enlace.', 429);
-      try { await deliverSetup(owner, token); }
-      catch { db.prepare('DELETE FROM owner_setup WHERE token=?').run(key); fail('No se pudo enviar el enlace de activación.', 502); }
-      return send(200, { message: 'Revisa tu correo para activar la administración.' });
+    if (p === '/api/status' && method === 'GET') {
+      const local = localSetupRequest(req);
+      return send(200, { version: '3.0.0', setup: emptyUsers() && (local || (!owner && !process.env.VERCEL)), ownerEmail: local ? owner : '', setupTokenRequired: !owner && Boolean(process.env.SETUP_TOKEN) });
     }
     if (p === '/api/setup' && method === 'POST') {
-      if (owner) {
-        throttle(req.socket.remoteAddress);
-        const b = await body(req), name = text(b.name), key = digest(text(b.token));
-        if (!name) fail('Ingresa tu nombre.');
-        if (!db.prepare('SELECT id FROM owner_setup WHERE token=? AND expires>?').get(key, Date.now())) fail('El enlace es inválido o ha caducado.', 403);
-        const result = db.prepare("INSERT INTO users(name,email,password,role,email_verified) SELECT ?,?,?,'administrador',1 FROM owner_setup WHERE token=? AND expires>? AND NOT EXISTS (SELECT 1 FROM users)").run(name, owner, hash(password(b.password)), key, Date.now());
-        if (!result.changes) fail('El enlace ya no está disponible.', 403);
-        db.prepare('DELETE FROM owner_setup WHERE token=?').run(key);
+      if (owner || process.env.VERCEL) {
+        if (!localSetupRequest(req) || req.headers.origin !== 'http://' + req.headers.host || !emptyUsers()) fail('Registro de administración no disponible.', 403);
+        const b = await body(req), name = text(b.name);
+        if (!name || name.length > 160) fail('Ingresa un nombre de hasta 160 caracteres.');
+        const result = db.prepare("INSERT INTO users(name,email,password,role,email_verified) SELECT ?,?,?,'administrador',1 WHERE NOT EXISTS (SELECT 1 FROM users)").run(name, owner, hash(password(b.password)));
+        if (!result.changes) fail('Configuración ya realizada.', 403);
         return send(201, { ok: true });
       }
       if (process.env.NODE_ENV === 'production' && !process.env.SETUP_TOKEN) fail('La instalación inicial requiere configuración del servidor.', 503);
@@ -107,9 +103,9 @@ export async function handleRequest(req, res) {
       const contact = recovery(b);
       db.prepare('INSERT INTO users(name,email,password,role,recovery_email,recovery_phone) VALUES(?,?,?,?,?,?)').run(text(b.name), text(b.email).toLowerCase(), hash(password(b.password)), 'administrador', contact.recoveryEmail, contact.recoveryPhone); return send(201, { ok: true });
     }
-    if (p === '/api/login' && method === 'POST') {
+    if ((p === '/api/login' || p === '/api/admin/login') && method === 'POST') {
       throttle(req.socket.remoteAddress); const b = await body(req), u = db.prepare('SELECT * FROM users WHERE email=? AND active=1').get(text(b.email).toLowerCase());
-      if (!u || !valid(b.password, u.password)) fail('Correo o contraseña incorrectos.', 401);
+      if (!u || (p === '/api/admin/login' && !adminAccess(u)) || !valid(b.password, u.password)) fail('Correo o contraseña incorrectos.', 401);
       db.prepare('DELETE FROM sessions WHERE expires<?').run(Date.now()); newSession(res, u.id); return send(200, { ok: true });
     }
     if (p === '/api/forgot' && method === 'POST') {
@@ -128,6 +124,11 @@ export async function handleRequest(req, res) {
     const token = /(?:^|;\s*)session=([^;]+)/.exec(req.headers.cookie || '')?.[1] || '';
     const u = db.prepare('SELECT u.id,u.name,u.email,u.role,u.active,u.recovery_email AS recoveryEmail,u.recovery_phone AS recoveryPhone,u.member_id AS memberId,u.email_verified AS emailVerified,u.membership_status AS membershipStatus FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token=? AND s.expires>? AND u.active=1').get(digest(token), Date.now());
     if (owner && p === '/api/register' && method === 'POST' && !db.prepare('SELECT id FROM users LIMIT 1').get()) fail('El registro abrirá después de activar la administración.', 403);
+    if (p === '/api/admin/session' && method === 'GET') {
+      if (!adminAccess(u)) fail('Inicia sesión como administrador.', 401);
+      return send(200, { ok: true });
+    }
+    if (owner && u && u.role !== 'miembro' && !adminAccess(u)) fail('Acceso reservado a la cuenta titular.', 403);
     if (await portal.handle({ p, method, url, req, res, user: u, send, download, readBody: () => body(req) })) return;
     if (!u) fail('Inicia sesión.', 401);
     const can = kind => { if (!permissions[kind]?.includes(u.role)) fail('Tu rol no permite esta operación.', 403); };
@@ -227,6 +228,6 @@ export async function handleRequest(req, res) {
 const server = http.createServer(handleRequest);
 server.requestTimeout = 30000;
 if (!process.env.VERCEL) {
-server.listen(process.env.PORT === '0' ? 0 : Number(process.env.PORT) || 3000, process.env.HOST || '127.0.0.1', () => console.log(`Aplicación disponible en http://127.0.0.1:${server.address().port}`));
+server.listen(process.env.PORT === '0' ? 0 : Number(process.env.PORT) || 3000, privateSetup ? '127.0.0.1' : process.env.HOST || '127.0.0.1', () => console.log(`Aplicación disponible en http://127.0.0.1:${server.address().port}`));
 server.on('error', e => { console.error(e.code === 'EADDRINUSE' ? 'El puerto está ocupado. Cierra la otra instancia o cambia PORT en .env.' : e.message); process.exitCode = 1; });
 }

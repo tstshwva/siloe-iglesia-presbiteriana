@@ -25,7 +25,7 @@ if (port > Math.min(requested + 20, 65535)) { console.error('No hay un puerto lo
 if (port !== requested) console.log(`El puerto ${requested} está ocupado por otra instancia. Se utilizará ${port} para abrir la versión actualizada.`);
 const url = `http://127.0.0.1:${port}`;
 const localOrigin = !process.env.APP_URL || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/.test(process.env.APP_URL);
-const child = spawn(process.execPath, ['server.js'], { cwd: root, stdio: ['inherit', 'pipe', 'inherit'], env: { ...process.env, HOST: '127.0.0.1', PORT: String(port), ...(localOrigin ? { APP_URL: url } : {}) } });
+const child = spawn(process.execPath, ['server.js', ...process.argv.slice(2).filter(arg => arg === '--registrar-titular')], { cwd: root, stdio: ['inherit', 'pipe', 'inherit'], env: { ...process.env, HOST: '127.0.0.1', PORT: String(port), ...(localOrigin ? { APP_URL: url } : {}) } });
 let opened = false;
 child.stdout.on('data', async chunk => {
   process.stdout.write(chunk);
@@ -36,7 +36,7 @@ child.stdout.on('data', async chunk => {
     if (!response.ok) throw Error('No responde el servidor.');
     console.log(`\nAbre ${url}\nAdministración: ${url}/admin\nComunidad: ${url}/comunidad\nMantén esta ventana abierta. Para salir pulsa Ctrl+C.\n`);
     if (process.argv.includes('--no-open')) return;
-    if (process.platform === 'win32') spawn('explorer.exe', [url], { windowsHide: true, stdio: 'ignore' }).on('error', () => {});
+    if (process.platform === 'win32') spawn('explorer.exe', [process.argv.includes('--registrar-titular') ? url + '/admin' : url], { windowsHide: true, stdio: 'ignore' }).on('error', () => {});
     else spawn(process.platform === 'darwin' ? 'open' : 'xdg-open', [url], { stdio: 'ignore' }).on('error', () => {});
   } catch { console.error(`El servidor arrancó, pero no se pudo comprobar. Prueba abrir ${url} en tu navegador.`); }
 });

@@ -22,18 +22,15 @@ function membershipBanner() {
   return `<section class="status"><div><strong>${!u.emailVerified ? 'Paso 1 · Confirma tu correo' : u.membershipStatus === 'pendiente' ? 'Paso 2 · Tu solicitud está en revisión' : u.membershipStatus === 'rechazado' ? 'Tu solicitud no fue aprobada' : 'Tu acceso de miembro no está activo'}</strong><p>${!u.emailVerified ? 'Revisa el enlace enviado a ' + esc(u.email) + '. Después, el administrador podrá revisar tu registro.' : u.membershipStatus === 'pendiente' ? 'Ya apareces en las solicitudes de Miembros del administrador. Aquí podrás consultar los eventos exclusivos cuando te aprueben.' : 'Puedes consultar las publicaciones públicas. Comunícate con la iglesia para revisar tu registro.'}</p></div><div class="actions">${!u.emailVerified ? '<button id="verify" class="secondary">Tengo un código</button><button id="resend" class="secondary">Reenviar correo</button>' : ''}<button id="refresh-status" class="secondary">Actualizar estado</button></div></section>`;
 }
 function render() {
-  $('#portal-app').innerHTML = `<header class="site-header"><a class="brand-link" href="/comunidad">${brand()}</a><nav aria-label="Comunidad">${[['inicio', 'Inicio'], ['eventos', 'Eventos'], ['avisos', 'Avisos'], ['ministerios', 'Ministerios'], ['iglesia', 'Nuestra iglesia']].map(([id, label]) => `<button data-page="${id}" class="nav-link ${page === id ? 'active' : ''}" ${page === id ? 'aria-current="page"' : ''}>${label}</button>`).join('')}</nav><div class="account-actions">${state.user ? `<button id="account" class="secondary">Mi cuenta</button><button id="logout" class="link">Salir</button>${state.user.role !== 'miembro' ? '<button id="admin-open">Administración</button>' : ''}` : '<button id="login" class="link">Iniciar sesión</button><button id="register">Soy parte de la comunidad</button><button class="secondary" id="admin-login">Administrador</button>'}</div></header><main id="main">${membershipBanner()}<section id="view"></section></main><footer class="site-footer">${brand()}<p>Una comunidad para crecer en fe y servir con amor.</p><p>${esc(state.church.address)}</p><button class="link" data-page="iglesia">Horarios y contacto</button>${!state.user || state.user.role !== 'miembro' ? '<button class="link" id="admin-footer">Acceso administrativo</button>' : ''}</footer>`;
+  $('#portal-app').innerHTML = `<header class="site-header"><a class="brand-link" href="/comunidad">${brand()}</a><nav aria-label="Comunidad">${[['inicio', 'Inicio'], ['eventos', 'Eventos'], ['campamentos', 'Campamentos'], ['directorio', 'Iglesias en Mérida'], ['avisos', 'Avisos'], ['ministerios', 'Ministerios'], ['iglesia', 'Nuestra iglesia']].map(([id, label]) => `<button data-page="${id}" class="nav-link ${page === id ? 'active' : ''}" ${page === id ? 'aria-current="page"' : ''}>${label}</button>`).join('')}</nav><div class="account-actions">${state.user ? `<button id="account" class="secondary">Mi cuenta</button><button id="logout" class="link">Salir</button>` : '<button id="login" class="link">Iniciar sesión</button><button id="register">Soy parte de la comunidad</button>'}</div></header><main id="main">${membershipBanner()}<section id="view"></section></main><footer class="site-footer">${brand()}<p>Una comunidad para crecer en fe y servir con amor.</p><p>${esc(state.church.address)}</p><button class="link" data-page="iglesia">Horarios y contacto</button></footer>`;
   document.querySelectorAll('[data-page]').forEach(button => button.onclick = () => { page = button.dataset.page; query = ''; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
-  if ($('#admin-login')) $('#admin-login').onclick = adminLogin;
-  if ($('#admin-open')) $('#admin-open').onclick = openAdmin;
-  if ($('#admin-footer')) $('#admin-footer').onclick = () => state.user ? openAdmin() : adminLogin();
   if ($('#login')) $('#login').onclick = () => accountDialog('login'); if ($('#register')) $('#register').onclick = () => accountDialog('register');
   if ($('#logout')) $('#logout').onclick = async () => { await api('logout', 'POST'); await refresh(); };
   for (const id of ['#account', '#profile']) if ($(id)) $(id).onclick = profile;
   if ($('#verify')) $('#verify').onclick = () => verification();
   if ($('#resend')) $('#resend').onclick = async () => { $('#resend').disabled = true; try { notify((await api('portal/verification', 'POST', {})).message); } catch (e) { notify(e.message); } finally { if ($('#resend')) $('#resend').disabled = false; } };
   if ($('#refresh-status')) $('#refresh-status').onclick = refresh;
-  if (page === 'inicio') home(); else if (page === 'eventos') events(); else if (page === 'avisos') announcements(); else if (page === 'ministerios') ministries(); else about();
+  if (page === 'inicio') home(); else if (page === 'eventos') events(); else if (page === 'avisos') announcements(); else if (page === 'ministerios') ministries(); else if (page === 'campamentos') camps(); else if (page === 'directorio') directory(); else about();
 }
 function eventCard(event) {
   return `<article class="event-card">${event.photo ? `<img src="${esc(event.photo)}" alt="${esc(event.title)}" loading="lazy">` : `<div class="event-art" aria-hidden="true"><span>${new Date(event.date + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit' })}</span>${new Date(event.date + 'T12:00:00').toLocaleDateString('es-MX', { month: 'short' })}</div>`}<div class="event-copy"><div class="tags"><span class="tag">${esc(event.ministryName || 'Comunidad')}</span>${event.visibility === 'miembros' ? '<span class="tag">Solo miembros</span>' : ''}${event.status === 'Cancelado' ? '<span class="tag cancelled">Cancelado</span>' : ''}${state.going.includes(event.id) ? '<span class="tag">✓ Confirmaste</span>' : ''}</div><p class="event-date">${esc(readable(event.date))} · ${esc(event.time)} h</p><h3>${esc(event.title)}</h3><p class="muted">${esc(event.place)}</p><button class="link" data-event="${event.id}">Ver encuentro y cómo llegar →</button></div></article>`;
@@ -41,9 +38,9 @@ function eventCard(event) {
 function bindEvents() { document.querySelectorAll('[data-event]').forEach(button => button.onclick = () => eventDetail(Number(button.dataset.event))); }
 function home() {
   const upcoming = state.events.filter(e => e.date >= today() && e.status !== 'Cancelado').sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
-  $('#view').innerHTML = `<section class="hero"><img src="${esc(state.church.cover || fallback)}" alt="${state.church.cover ? 'Nuestra iglesia' : 'Fotografía ilustrativa de un templo'}"><div class="hero-shade"></div><div class="hero-content"><p class="eyebrow">BIENVENIDO A NUESTRA COMUNIDAD</p><h1>Un lugar para creer.<br>Una familia para crecer.</h1><p>Encuentra tu próximo encuentro, participa y mantente cerca de la vida de nuestra iglesia.</p><div class="actions"><button id="explore">Descubrir próximos eventos →</button><button id="learn" class="light">Conócenos</button></div></div></section><section class="welcome-strip"><span class="eyebrow">NOS ALEGRA QUE ESTÉS AQUÍ</span><p>${esc(state.church.schedule || 'Consulta los horarios de nuestra comunidad.')}</p><button id="directions" class="link">Cómo llegar ↗</button></section><section class="section"><div class="section-heading"><div><p class="eyebrow">COMPARTAMOS EL CAMINO</p><h2>Nuestros próximos encuentros</h2></div><button id="all-events" class="link">Ver todos los eventos →</button></div><div class="event-grid">${upcoming.slice(0, 3).map(eventCard).join('') || empty('Pronto compartiremos nuevos encuentros. Vuelve a visitarnos.')}</div></section><section class="section notice-section"><div><p class="eyebrow">LA VIDA DE NUESTRA IGLESIA</p><h2>Noticias de la comunidad</h2><p class="muted">Los avisos importantes, en un solo lugar.</p><button id="all-notices" class="link">Ver todos los avisos →</button></div><div>${noticeCards(state.announcements.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3))}</div></section>${!state.user ? '<section class="join-block"><div><p class="eyebrow">ESTE TAMBIÉN ES TU LUGAR</p><h2>Conéctate con tu comunidad.</h2><p>Crea tu cuenta para solicitar tu registro como miembro y participar en los encuentros de la iglesia.</p></div><button id="join">Crear mi cuenta →</button></section>' : ''}`;
+  $('#view').innerHTML = `<section class="hero"><img src="${esc(state.church.cover || fallback)}" alt="${state.church.cover ? 'Nuestra iglesia' : 'Fotografía ilustrativa de un templo'}"><div class="hero-shade"></div><div class="hero-content"><p class="eyebrow">BIENVENIDO A NUESTRA COMUNIDAD</p><h1>Un lugar para creer.<br>Una familia para crecer.</h1><p>Encuentra tu próximo encuentro, participa y mantente cerca de la vida de nuestra iglesia.</p><div class="actions"><button id="explore">Descubrir próximos eventos →</button><button id="learn" class="light">Conócenos</button></div></div></section><section class="welcome-strip"><span class="eyebrow">NOS ALEGRA QUE ESTÉS AQUÍ</span><p>${esc(state.church.schedule || 'Consulta los horarios de nuestra comunidad.')}</p><a class="link" href="#ubicacion">Cómo llegar ↓</a></section><section class="section"><div class="section-heading"><div><p class="eyebrow">COMPARTAMOS EL CAMINO</p><h2>Nuestros próximos encuentros</h2></div><button id="all-events" class="link">Ver todos los eventos →</button></div><div class="event-grid">${upcoming.slice(0, 3).map(eventCard).join('') || empty('Pronto compartiremos nuevos encuentros. Vuelve a visitarnos.')}</div></section><section class="section notice-section"><div><p class="eyebrow">LA VIDA DE NUESTRA IGLESIA</p><h2>Noticias de la comunidad</h2><p class="muted">Los avisos importantes, en un solo lugar.</p><button id="all-notices" class="link">Ver todos los avisos →</button></div><div>${noticeCards(state.announcements.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3))}</div></section>${locationSection()}${!state.user ? '<section class="join-block"><div><p class="eyebrow">ESTE TAMBIÉN ES TU LUGAR</p><h2>Conéctate con tu comunidad.</h2><p>Crea tu cuenta para solicitar tu registro como miembro y participar en los encuentros de la iglesia.</p></div><button id="join">Crear mi cuenta →</button></section>' : ''}`;
   for (const id of ['#explore', '#all-events']) $(id).onclick = () => { page = 'eventos'; render(); };
-  for (const id of ['#learn', '#directions']) $(id).onclick = () => { page = 'iglesia'; render(); };
+  for (const id of ['#learn']) $(id).onclick = () => { page = 'iglesia'; render(); };
   $('#all-notices').onclick = () => { page = 'avisos'; render(); }; if ($('#join')) $('#join').onclick = () => accountDialog('register'); bindEvents();
 }
 function events() {
@@ -63,6 +60,28 @@ function ministries() {
   $('#view').innerHTML = `<section class="section"><p class="eyebrow">CADA DON TIENE UN LUGAR</p><h1>Nuestros ministerios</h1><p class="muted">Conoce nuestros grupos y participa en sus actividades. Para integrarte, comunícate con la iglesia.</p><div class="ministry-grid">${state.ministries.map(m => `<article class="ministry-card"><span class="ministry-symbol" aria-hidden="true">◇</span><h2>${esc(m.name)}</h2><p class="multiline">${esc(m.description || 'Un espacio para servir y crecer juntos.')}</p><button data-ministry="${esc(m.name)}" class="link">Ver actividades →</button></article>`).join('') || empty('Pronto publicaremos nuestros ministerios.')}</div></section>`;
   document.querySelectorAll('[data-ministry]').forEach(button => button.onclick = () => { ministry = button.dataset.ministry; page = 'eventos'; render(); });
 }
+function locationSection() {
+  return `<section id="ubicacion" class="section"><p class="eyebrow">MÉRIDA, YUCATÁN</p><h2>Visita Siloé</h2><iframe class="location-map" title="Mapa de Google de Congregación Siloé" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" src="https://www.google.com/maps?q=21.0085811,-89.5926871&amp;z=17&amp;output=embed"></iframe><p><a class="button secondary" href="https://maps.app.goo.gl/rZsBiDhF65tejU1d6" target="_blank" rel="noopener noreferrer">Cómo llegar en Google Maps ↗</a></p></section>`;
+}
+function directory() {
+  const groups = [
+    ['Presbiterianas', 'https://www.presbiteriopeninsular.org/iglesias', [
+      ['Iglesia Presbiteriana Shalom', 'Calle 26 núm. 215, García Ginerés'],
+      ['Iglesia El Verbo de Dios', 'Calle 20 núm. 101 A, Chuburná de Hidalgo'],
+      ['Iglesia Getsemaní de Mérida', 'Calle 39 núm. 223, Petcanché'],
+    ]],
+    ['Bautistas', 'https://www.ibimerida.org/lo-que-creemos', [
+      ['IBI Mérida', 'Calle 22 núm. 225, fraccionamiento Limones'],
+    ]],
+  ];
+  $('#view').innerHTML = `${locationSection()}<section class="section"><p class="eyebrow">DIRECTORIO LOCAL</p><h1>Iglesias cristianas de Mérida</h1><p class="muted">Otras congregaciones de la ciudad, agrupadas por tradición.</p>${groups.map(([category, source, churches]) => `<h2>${esc(category)}</h2><div class="ministry-grid">${churches.map(([name, address]) => `<article class="ministry-card"><h3>${esc(name)}</h3><p>${esc(address)} · Mérida, Yucatán</p><div class="actions">${mapLinks(address + ', Mérida, Yucatán')}<a href="${esc(source)}" target="_blank" rel="noopener noreferrer">Fuente ↗</a></div></article>`).join('')}</div>`).join('')}</section>`;
+}
+function camps() {
+  const upcoming = state.events.filter(e => e.category === 'campamento' && e.date >= today() && e.status !== 'Cancelado')
+    .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+  $('#view').innerHTML = `<section class="section"><p class="eyebrow">CONVIVENCIA Y FE</p><h1>Campamentos de Siloé</h1><p class="muted">Aquí encontrarás las fechas y los lugares de nuestros próximos campamentos.</p><div class="event-grid">${upcoming.map(eventCard).join('') || empty('Aún no hay campamentos programados.')}</div></section>`;
+  bindEvents();
+}
 function about() {
   $('#view').innerHTML = `<section class="section"><p class="eyebrow">NOS ENCANTARÁ RECIBIRTE</p><h1>${esc(state.church.name)}</h1><div class="about-grid"><img class="about-photo" src="${esc(state.church.cover || fallback)}" alt="${state.church.cover ? 'Nuestra iglesia' : 'Fotografía ilustrativa de un templo'}"><div class="about-copy"><h2>Horarios de reunión</h2><p class="multiline">${esc(state.church.schedule || 'Comunícate con nosotros para consultar los horarios.')}</p><h2>Cómo llegar</h2><p>${esc(state.church.address || 'Consulta la ubicación de Siloé en el mapa.')}</p><div class="actions"><a class="button secondary" href="https://maps.app.goo.gl/rZsBiDhF65tejU1d6" target="_blank" rel="noopener noreferrer">Ver ubicación en Google Maps ↗</a></div><h2>Contacto</h2>${state.church.phone ? `<p><a href="tel:${esc(state.church.phone.replace(/[^\d+]/g, ''))}">${esc(state.church.phone)}</a></p>` : ''}${state.church.email ? `<p><a href="mailto:${esc(state.church.email)}">${esc(state.church.email)}</a></p>` : ''}</div></div></section>`;
 }
@@ -75,59 +94,7 @@ function eventDetail(id) {
   $('#share-event').onclick = async () => { const link = location.origin + '/comunidad#evento=' + id; try { await navigator.clipboard.writeText(link); notify('Enlace copiado.'); } catch { modal('Enlace del evento', `<label>Copia este enlace<input readonly value="${esc(link)}"></label><p>Los eventos exclusivos siguen requiriendo acceso de miembro.</p>`); } };
   if ($('#rsvp')) $('#rsvp').onclick = async () => { $('#rsvp').disabled = true; try { await api('portal/events/' + id + '/rsvp', going ? 'DELETE' : 'POST'); d.close(); await refresh(); notify(going ? 'Confirmación retirada.' : '¡Te esperamos! Tu confirmación quedó guardada.'); } catch (e) { d.querySelector('.error').textContent = e.message; $('#rsvp').disabled = false; } };
 }
-let adminFrame;
-async function closeAdmin() {
-  $('#admin-workspace')?.remove(); adminFrame = undefined;
-  $('#portal-app').hidden = false; await refresh(); window.scrollTo(0, 0);
-}
-async function openAdmin() {
-  const status = await api('status');
-  if (!status.setup) { const user = await api('me'); if (user.role === 'miembro') throw Error('Esta cuenta no tiene acceso administrativo.'); }
-  document.querySelector('dialog')?.close();
-  $('#admin-workspace')?.remove();
-  const workspace = document.createElement('section'); workspace.id = 'admin-workspace';
-  workspace.innerHTML = '<div class="admin-toolbar"><strong>Administración de Siloé</strong><button id="back-community" class="secondary">Volver a la comunidad</button></div><iframe title="Panel de administración de Siloé" src="/admin?integrado=1"></iframe>';
-  document.body.append(workspace); adminFrame = workspace.querySelector('iframe');
-  workspace.querySelector('#back-community').onclick = closeAdmin;
-  $('#portal-app').hidden = true; window.scrollTo(0, 0);
-}
-window.addEventListener('message', event => {
-  if (event.origin === location.origin && event.source === adminFrame?.contentWindow && event.data === 'siloe-admin-exit') closeAdmin();
-});
-async function adminLogin() {
-  try { const status = await api('status'); if (status.setup) { if (status.setupByEmail) ownerActivation(); else await openAdmin(); return; } } catch (error) { notify(error.message); return; }
-  const d = modal('Iniciar sesión · Administración', '<p>Acceso exclusivo para el personal autorizado de Siloé.</p><form><label>Correo electrónico<input name="email" type="email" required autocomplete="username"></label><label>Contraseña<input name="password" type="password" required maxlength="256" autocomplete="current-password"></label><p class="error" role="alert"></p><button>Iniciar sesión</button></form>');
-  d.querySelector('form').onsubmit = async e => {
-    e.preventDefault(); const button = e.target.querySelector('button'); button.disabled = true;
-    try {
-      await api('login', 'POST', Object.fromEntries(new FormData(e.target)));
-      e.target.reset();
-      const user = await api('me');
-      if (user.role === 'miembro') { await api('logout', 'POST'); throw Error('Esta cuenta no tiene acceso administrativo. Usa el inicio de sesión de miembros.'); }
-      await openAdmin();
-    } catch (error) { d.querySelector('.error').textContent = error.message; button.disabled = false; }
-  };
-}
 const input = (name, label, type = 'text', required = true, extra = '') => `<label>${label}<input name="${name}" type="${type}" ${required ? 'required' : ''} ${extra}></label>`;
-function ownerActivation(token = '') {
-  const fields = token ? input('name', 'Tu nombre', 'text', true, 'maxlength="160" autocomplete="name"')
-    + input('password', 'Contraseña (mínimo 12 caracteres)', 'password', true, 'minlength="12" maxlength="256" autocomplete="new-password"')
-    + input('confirm', 'Confirma la contraseña', 'password', true, 'minlength="12" maxlength="256" autocomplete="new-password"') : '';
-  const d = modal('Activar administración', `<p>${token ? 'Elige la contraseña de la cuenta titular.' : 'Enviaremos un enlace privado al correo de la cuenta titular de Siloé.'}</p><form>${fields}<p role="alert" class="error"></p><button>${token ? 'Activar cuenta' : 'Enviar enlace'}</button></form>`);
-  d.querySelector('form').onsubmit = async event => {
-    event.preventDefault();
-    const form = event.currentTarget, button = form.querySelector('button');
-    button.disabled = true;
-    try {
-      const { name, password, confirm } = Object.fromEntries(new FormData(form));
-      if (token && password !== confirm) throw Error('Las contraseñas no coinciden.');
-      const result = await api(token ? 'setup' : 'setup/email', 'POST', token ? { name, password, token } : {});
-      d.close();
-      if (token) await adminLogin();
-      notify(result.message || 'Cuenta activada. Inicia sesión con tu correo y contraseña.');
-    } catch (error) { form.querySelector('.error').textContent = error.message; button.disabled = false; }
-  };
-}
 function accountDialog(mode = 'login', token = '') {
   const register = mode === 'register', reset = mode === 'reset';
   const d = modal(register ? 'Únete a nuestra comunidad' : mode === 'forgot' ? 'Recupera tu acceso' : reset ? 'Restablecer contraseña' : 'Qué alegría verte de nuevo', `<p class="muted">${register ? 'Tu solicitud aparecerá en el panel de la iglesia. Verifica tu correo y espera la aprobación.' : mode === 'forgot' ? 'Escribe el correo principal de tu cuenta. El enlace llegará al correo de recuperación que configuraste, o al principal.' : 'Tu espacio para participar en la vida de la iglesia.'}</p><form class="account-form"><div class="form-grid">${register ? input('name', 'Nombre completo *', 'text', true, 'maxlength="160" autocomplete="name"') : ''}${!reset ? input('email', 'Correo principal *', 'email', true, 'maxlength="254" autocomplete="email"') : input('token', 'Código de recuperación', 'text', true, `value="${esc(token)}" autocomplete="off"`)}${mode !== 'forgot' ? input('password', 'Contraseña *' + (register || reset ? ' (mínimo 12 caracteres)' : ''), 'password', true, `${register || reset ? 'minlength="12"' : ''} maxlength="256" autocomplete="${register || reset ? 'new-password' : 'current-password'}"`) : ''}${register || reset ? input('confirm', 'Confirmar contraseña *', 'password', true, 'autocomplete="new-password"') : ''}${register ? input('phone', 'Teléfono (opcional)', 'tel', false, 'maxlength="30" autocomplete="tel"') + `<details class="full"><summary>Añadir datos de recuperación (opcional)</summary><div class="form-grid">${input('recoveryEmail', 'Correo alternativo', 'email', false, 'maxlength="254"')}${input('recoveryPhone', 'Teléfono de recuperación', 'tel', false, 'maxlength="30"')}</div><small>El teléfono es contacto de apoyo; no envía códigos por SMS.</small></details>` : ''}</div><p class="error" role="alert"></p><button>${register ? 'Crear cuenta y solicitar registro' : mode === 'forgot' ? 'Enviar instrucciones' : reset ? 'Guardar contraseña' : 'Iniciar sesión'}</button></form><div class="actions form-links">${!register ? '<button id="create-account" class="link">Crear mi cuenta</button>' : '<button id="have-account" class="link">Ya tengo una cuenta</button>'}${mode === 'login' ? '<button id="forgot" class="link">Olvidé mi contraseña</button>' : ''}</div>`);
@@ -150,6 +117,5 @@ try {
   await refresh(); const fragment = location.hash.slice(1); history.replaceState(null, '', location.pathname);
   if (fragment.startsWith('verificar=')) { const token = decodeURIComponent(fragment.slice(10)); try { const result = await api('verify-email', 'POST', { token }); await refresh(); notify(result.message); } catch (e) { verification(token); notify(e.message); } }
   else if (fragment.startsWith('restablecer=')) accountDialog('reset', decodeURIComponent(fragment.slice(12)));
-  else if (fragment.startsWith('activar=')) ownerActivation(fragment.slice(8));
   else if (fragment.startsWith('evento=')) eventDetail(Number(fragment.slice(7)));
-} catch (e) { $('#portal-app').innerHTML = `<section class="section"><h1>La comunidad está preparando su espacio</h1><p>${esc(e.message)}</p><a href="/admin">Acceso administrativo</a></section>`; }
+} catch (e) { $('#portal-app').innerHTML = `<section class="section"><h1>La comunidad está preparando su espacio</h1><p>${esc(e.message)}</p></section>`; }
