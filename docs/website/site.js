@@ -13,8 +13,8 @@ function mapLinks(place) {
 }
 function render() {
   $('#portal-app').innerHTML = `<header class="site-header"><a class="brand-link" href="./">${brand()}</a><nav aria-label="Comunidad">${[['inicio','Inicio'],['eventos','Eventos'],['campamentos','Campamentos'],['directorio','Iglesias en Mérida'],['avisos','Avisos'],['ministerios','Ministerios'],['iglesia','Nuestra iglesia']].map(([id,label]) => `<button data-page="${id}" class="nav-link ${page === id ? 'active' : ''}" ${page === id ? 'aria-current="page"' : ''}>${label}</button>`).join('')}</nav><div class="account-actions"><button class="secondary" data-page="iglesia">Contacto ↗</button></div></header><main id="main"><section id="view"></section></main><footer class="site-footer">${brand()}<p>Una comunidad para crecer en fe y servir con amor.</p><p>${esc(state.church.address)}</p><button class="link" data-page="iglesia">Horarios y contacto</button><p>Esta página es informativa. Consulta el sitio oficial de Siloé para ver las publicaciones actualizadas.</p><small>Última publicación: ${esc(readable(state.updatedAt.slice(0,10)))}</small></footer>`;
-  document.querySelectorAll('[data-page]').forEach(button => button.onclick = () => { page = button.dataset.page; query = ''; ministry = ''; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
   if (page === 'inicio') home(); else if (page === 'eventos') events(); else if (page === 'avisos') announcements(); else if (page === 'ministerios') ministries(); else if (page === 'campamentos') camps(); else if (page === 'directorio') directory(); else about();
+  document.querySelectorAll('[data-page]').forEach(button => button.onclick = () => { page = button.dataset.page; query = ''; ministry = ''; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
 }
 function modal(title, contents) {
   document.querySelector('dialog')?.remove(); const d = document.createElement('dialog');

@@ -13,7 +13,8 @@ import { report, reportPdf } from './lib/reports.js';
 import { createPortal } from './lib/portal.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
-if (existsSync(path.join(root, '.env'))) loadEnvFile(path.join(root, '.env'));
+if (process.env.NODE_ENV !== 'test' && existsSync(path.join(root, '.env'))) loadEnvFile(path.join(root, '.env'));
+if (process.env.NODE_ENV === 'test' && (process.env.TURSO_DATABASE_URL || process.env.TURSO_AUTH_TOKEN)) throw Error('Las pruebas del servidor requieren una base local.');
 if (!process.env.APP_URL) process.env.APP_URL = process.env.RENDER_EXTERNAL_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? 'https://' + process.env.VERCEL_PROJECT_PRODUCTION_URL : '');
 if (!process.env.TURSO_DATABASE_URL) mkdirSync(path.join(root, 'data'), { recursive: true });
 const { db, remote } = await openDatabase(process.env.DB_PATH || path.join(root, 'data', 'church.sqlite'));
