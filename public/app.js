@@ -99,20 +99,43 @@ function dialog(title, html, onSave, another = false) {
 function editor(kind, id) {
   const b = data[kind]?.find(r => r.id === id) || {};
   let html = fields(kind, b, Boolean(id));
-  if (['events', 'announcements', 'ministries'].includes(kind)) html += select('visibility', 'Publicación en la comunidad', [['privado', 'Solo administración'], ['publico', 'Público: cualquier visitante'], ['miembros', 'Solo miembros aprobados']], b.visibility || 'privado') + '<p class="muted full">Elige explícitamente qué verá la congregación. Los datos de miembros e ingresos nunca se publican.</p>';
+  if (['events', 'announcements', 'ministries'].includes(kind)) html += select('visibility', 'Publicación en la comunidad', [...(kind === 'ministries' ? [] : [['borrador', 'Borrador']]), ['privado', 'Solo administración'], ['publico', 'Público: cualquier visitante'], ['miembros', 'Solo miembros aprobados']], b.visibility || (kind === 'ministries' ? 'privado' : 'borrador')) + '<p class="muted full">Elige explícitamente qué verá la congregación. Los datos de miembros e ingresos nunca se publican.</p>';
   if (kind === 'events') html += field('address', 'Dirección completa para Google Maps y Apple Maps', b.address || '', 'text', false, 'maxlength="400"') + `<label class="full">Fotografía del evento (hasta 2 MB)<input name="eventPhoto" type="file" accept="image/png,image/jpeg,image/webp"></label>${b.photo ? `<img class="cover-preview full" src="${esc(b.photo)}" alt="Foto del evento"><label class="check full"><input name="removePhoto" type="checkbox">Quitar foto</label>` : ''}`;
-  dialog((id ? 'Editar ' : 'Registrar ') + names[kind].toLowerCase(), html, async (v, f) => {
+  if (kind === 'events') html += `<label class="full check"><input type="checkbox" name="featured" ${b.featured === 'on' ? 'checked' : ''}>Destacar en portada si el evento es público</label><div class="full form-grid" data-camp-fields>${field('endDate', 'Último día del campamento', b.endDate, 'date')}${field('ages', 'Edades o grupo al que va dirigido', b.ages)}${field('registrationUrl', 'Enlace HTTPS de inscripción', b.registrationUrl, 'url')}${textarea('packing', 'Qué llevar', b.packing)}</div>`;
+  if (['events', 'announcements'].includes(kind)) html += '<div class="full"><button type="button" class="secondary" data-preview>Vista previa</button><section class="publication-preview" aria-label="Vista previa en celular" aria-live="polite" hidden></section></div>';
+  const editorDialog = dialog((id ? 'Editar ' : 'Registrar ') + names[kind].toLowerCase(), html, async (v, f) => {
     if (kind === 'ministries') v.members = new FormData(f).getAll('members').map(Number);
     if (kind === 'members') v.confirmDuplicate = v.confirmDuplicate === 'on';
     if (kind === 'events') { const photo = f.querySelector('[name=eventPhoto]').files[0]; if (photo && !['image/png', 'image/jpeg', 'image/webp'].includes(photo.type)) throw Error('Usa una foto PNG, JPG o WebP.'); v.photo = v.removePhoto ? '' : photo ? await fileData(photo, 2e6) : b.photo || ''; }
     await api(kind + (id ? '/' + id : ''), id ? 'PUT' : 'POST', v);
   }, kind === 'members' && !id);
+  const form = editorDialog.querySelector('form');
+  if (kind === 'events') {
+    const category = form.elements.category;
+    const campFields = form.querySelector('[data-camp-fields]');
+    const update = () => { campFields.hidden = category.value !== 'campamento'; };
+    category.addEventListener('change', update);
+    update();
+  }
+  const previewButton = form.querySelector('[data-preview]');
+  if (previewButton) previewButton.onclick = async () => {
+    const preview = form.querySelector('.publication-preview');
+    const values = Object.fromEntries(new FormData(form));
+    const event = kind === 'events';
+    let picture = event && !values.removePhoto ? b.photo : '';
+    if (event && !values.removePhoto && values.eventPhoto.size) {
+      const file = values.eventPhoto;
+      if (['image/png', 'image/jpeg', 'image/webp'].includes(file.type) && file.size <= 2e6) picture = await fileData(file, 2e6).catch(() => '');
+    }
+    preview.innerHTML = `<p class="eyebrow">VISTA PREVIA EN CELULAR</p>${picture ? `<img src="${esc(picture)}" alt="">` : ''}<p class="muted">${esc(values.date)}${event && values.time ? ' · ' + esc(values.time) + ' h' : ''}</p><h3>${esc(values.title || 'Título de la publicación')}</h3>${event ? `<p>${esc(values.place)}</p>` : ''}<p class="multiline">${esc(values.description)}</p>${event && values.category === 'campamento' ? `<p>${esc([values.endDate, values.ages].filter(Boolean).join(' · '))}</p><p class="multiline">${esc(values.packing)}</p>` : ''}`;
+    preview.hidden = false;
+  };
 }
 const columns = { members: [['name', 'Nombre'], ['phone', 'Teléfono'], ['email', 'Correo'], ['joined', 'Ingreso'], ['family', 'Familia'], ['active', 'Estado']], events: [['title', 'Evento'], ['date', 'Fecha'], ['time', 'Hora'], ['place', 'Lugar'], ['responsible', 'Responsable'], ['ministryId', 'Ministerio'], ['status', 'Estado']], ministries: [['name', 'Ministerio'], ['coordinator', 'Coordinador'], ['members', 'Integrantes']], donations: [['date', 'Fecha'], ['amount', 'Monto'], ['concept', 'Concepto'], ['method', 'Método'], ['memberId', 'Aportante']], announcements: [['title', 'Título'], ['date', 'Publicación'], ['description', 'Contenido']], users: [['name', 'Nombre'], ['email', 'Correo'], ['recoveryEmail', 'Correo de recuperación'], ['recoveryPhone', 'Teléfono de recuperación'], ['role', 'Rol'], ['active', 'Estado']] };
 for (const kind of ['events', 'announcements', 'ministries']) columns[kind].push(['visibility', 'Publicación']);
 columns.events.push(['rsvp', 'Confirmaciones']);
 function cell(k, r) {
-  if (k === 'visibility') return esc(({ publico: 'Público', miembros: 'Miembros aprobados', privado: 'Solo administración' })[r.visibility || 'privado']);
+  if (k === 'visibility') return esc(({ borrador: 'Borrador', publico: 'Público', miembros: 'Miembros aprobados', privado: 'Solo administración' })[r.visibility || 'privado']);
   if (k === 'rsvp') return esc(data['event-rsvps']?.find(s => s.eventId === r.id)?.count || 0);
   if (k === 'amount') return money(Number(r[k]));
   if (k === 'members') return esc((r.members || []).map(id => data.members.find(m => m.id === id)?.name || '').join(', ') || 'Sin integrantes');
